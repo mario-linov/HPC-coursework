@@ -1,13 +1,22 @@
 #ifndef CLASS_MODEL
 #define CLASS_MODEL
 
-#include <iostream>
+//#include "mpi.h"
+#include <fstream>
 #include <string>
 #include <sstream>
-//#include "mpi.h"
+#include <iostream>
+#include <iomanip>
 
 using namespace std;
 
+/**
+ * @class Model
+ * @author Mario Lino Valencia
+ * @date 14/02/19
+ * @file Model.h
+ * @brief This class is used to define the parameters that characterise the porblem
+ */
 class Model {
 	public:
 		Model(int argc, char* argv[]);
@@ -15,7 +24,7 @@ class Model {
 
         void PrintParameters();
 
-        bool IsValid();
+        bool   IsValid()   const { return validity; }
 
         // Getters
 		bool   IsVerbose() const { return verbose; }
@@ -37,7 +46,6 @@ class Model {
         double GetC()      const { return c; }
 
         // Add any other getters here...
-        
 
 	private:
         void ParseParameters(int argc, char* argv[]);
@@ -66,17 +74,7 @@ class Model {
 	    double c;
 
         // Add any additional parameters here...
+        bool validity;
 };
-
-
-//void SetX0() {
-//    double x0;
-//    string input;
-//    cout << "Enter x0: ";
-//    cin >> input;
-//    stringstream(input) >> x0;
-//}
-
-
 
 #endif

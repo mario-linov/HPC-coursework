@@ -1,0 +1,167 @@
+#include "Burgers.h"
+
+/**
+ * @brief Load the problem parameter from a Model instance and initilise x, y, u and v
+ * @param m MOdel instnce defining the burgers problem to be solved
+ */
+Burgers::Burgers(Model m) {
+    
+    // Lad Numerics
+    x0 = m.GetX0();
+    y0 = m.GetY0();
+    Lx = m.GetLx();
+    Ly = m.GetLy();
+    T  = m.GetT ();
+    Nx = m.GetNx();
+    Ny = m.GetNy();
+    Nt = m.GetNt();
+    dx = m.GetDx();
+    dy = m.GetDy();
+    dt = m.GetDt();
+    // Load Physics
+    ax = m.GetAx();
+    ay = m.GetAy();
+    b  = m.GetB ();
+    c  = m.GetC ();
+    
+    // Initilise coordinates
+    x = new double[Nx];
+    for (int i = 0; i < Nx; ++i) x[i] = -Lx/2 + i*dx;
+    y = new double[Ny];
+    for (int j = 0; j < Ny; ++j) y[j] = -Ly/2 + j*dy;
+    // Initilise velocity field
+    u = new double[Nx*Ny];
+    v = new double[Nx*Ny];
+    
+}
+        
+/**
+ * @brief Destructor
+ */
+Burgers::~Burgers() {
+
+}
+
+/**
+ * @brief Set the initial condition
+ */
+void Burgers::SetIC() {
+    
+    double y2, r;
+    
+    int i, j, i0j0;
+    
+    for (j = 0; j < Ny; ++j) {
+        y2 = pow( y[j]-y0 , 2);
+        for (i = 0; i < Nx; ++i) {
+            
+            i0j0 = Nx*j+i; // Index
+            
+            r = pow( y2 + pow( x[i]-x0 , 2),0.5); // Radial coordinate
+            
+            if (r <= 1.)    u[i0j0] = v[i0j0] = 2.*pow(1.-r,4)*(4.*r+1.);
+            else            u[i0j0] = v[i0j0] = 0.;
+        }
+    }
+    
+}
+
+/**
+ * @brief Save u and v to a *.sol file that can be read by gnuplot
+ */
+void Burgers::SaveSol() {
+    
+    ofstream f_out("velocity.sol");
+    int width(20);
+    
+    int i, j, i0j0;
+    
+    for (j = 0; j < Ny; ++j) {
+        for (i = 0; i < Nx; ++i) {
+            i0j0 = Nx*j+i; // Index
+            f_out << setw(width) << x[i] << setw(width) << y[j] << setw(width) << u[i0j0] << setw(width) << v[i0j0] << endl;
+        }
+        f_out << endl;
+    }
+    
+    f_out.close();
+    
+}
+
+/**
+ * @brief Compute energy
+ */
+double Burgers::GetE() {
+    
+    double E = 0.;
+    int i, j, i0j0;
+    
+    for (j = 0; j < Ny; ++j) {
+        for (i = 0; i < Nx; ++i) {
+            i0j0 = Nx*j+i; // Index
+            E += pow(pow(u[i0j0],2.)+pow(v[i0j0],2.), 0.5);
+        }
+    }
+    
+    return E*dx*dy/2.;
+    
+}
+
+
+/**
+ * @brief Solve burgers equation with finite differences
+ */
+void Burgers::Solve() {
+    
+    // Fluxes
+    double fluxU;
+    double fluxV;
+    
+    // Variables to increase enficiency
+    double invDx = 1/dx;
+    double invDy = 1/dy;
+    double invDx2 = 1/(dx*dx);
+    double invDy2 = 1/(dy*dy);
+    double axbu;
+    double aybv;
+    int i0j0, irj0, ilj0, i0jr, i0jl; // Indices
+    
+    int i, j, n;
+
+    for (n = 1; n <= Nt; ++n) {                 // Loop to iterate in time
+        for (j = 1; j < Ny-1; ++j) {            // Loop to iterate in y
+            for (i = 1; i < Nx-1; ++i) {        // Loop to iterate in x
+                
+                // Compute indices
+                i0j0 = Nx*j+i;
+                irj0 = Nx*j+(i+1);
+                ilj0 = Nx*j+(i-1);
+                i0jr = Nx*(j+1)+i;
+                i0jl = Nx*(j-1)+i;
+                // Compute convective velocities
+                axbu = ax + b*u[i0j0];
+                aybv = ay + b*v[i0j0];
+                
+                // Compute flux in firts equation
+                fluxU =    c*(  (u[irj0] - 2.*u[i0j0] + u[ilj0])*invDx2
+                              + (u[i0jr] - 2.*u[i0j0] + u[i0jl])*invDy2 )
+                        
+                           - (  axbu*(u[i0j0] - u[ilj0])*invDx
+                              + aybv*(u[i0j0] - u[i0jl])*invDy  );
+                
+                // Compute flux in second equation
+                fluxV =   c*(  (v[irj0] - 2.*v[i0j0] + v[ilj0])*invDx2
+                             + (v[i0jr] - 2.*v[i0j0] + v[i0jl])*invDy2 )
+                        
+                          -  (  axbu*(v[i0j0] - v[ilj0])*invDx
+                              + aybv*(v[i0j0] - v[i0jl])*invDy  );
+                              
+                // Update the velcoity field
+                u[i0j0] +=  fluxU*dt;
+                v[i0j0] +=  fluxV*dt;
+                
+            }
+        }
+    }
+    
+}
