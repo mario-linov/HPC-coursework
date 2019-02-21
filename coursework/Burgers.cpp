@@ -124,18 +124,19 @@ void Burgers::Solve() {
     double invDy2 = 1/(dy*dy);
     double axbu;
     double aybv;
-    int i0j0, irj0, ilj0, i0jr, i0jl; // Indices
+    int j0, i0j0, irj0, ilj0, i0jr, i0jl; // Indices
     
     int i, j, n;
 
     for (n = 1; n <= Nt; ++n) {                 // Loop to iterate in time
         for (j = 1; j < Ny-1; ++j) {            // Loop to iterate in y
+            j0 = Nx*j;
             for (i = 1; i < Nx-1; ++i) {        // Loop to iterate in x
                 
                 // Compute indices
-                i0j0 = Nx*j+i;
-                irj0 = Nx*j+(i+1);
-                ilj0 = Nx*j+(i-1);
+                i0j0 = j0+i;
+                irj0 = j0+(i+1);
+                ilj0 = j0+(i-1);
                 i0jr = Nx*(j+1)+i;
                 i0jl = Nx*(j-1)+i;
                 // Compute convective velocities

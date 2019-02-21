@@ -41,6 +41,8 @@ int main(int argc, char* argv[]) {
     }
     
     // Check comptibility between space discretisation and number of processes
+    // The number of nodes in y direction (without the boundary nodes) should be divisble
+    // the number of processes
     if ( (m.GetNy()-2) % size ) {
         if (rank == 0) cout << "ERROR: Non-comptaible number of nodes and processes." << endl;
         MPI_Finalize();

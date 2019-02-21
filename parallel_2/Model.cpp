@@ -38,7 +38,6 @@ Model::~Model() {
 void Model::ParseParameters(int argc, char* argv[]) {
     
     ifstream f_in(argv[1]);
-    cout << "Reading parameters from " << argv[1] << "..." << endl;
     string input;
     
     /// Parse x0:

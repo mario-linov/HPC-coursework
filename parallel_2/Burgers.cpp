@@ -105,18 +105,22 @@ double Burgers::GetE() {
     return E*dx*dy/2.;
     
 }
-
-
+ 
 /**
- * @brief Solve burgers equation with finite differences
- */
+ * @brief Solve burgers equation to obtain the velocity field. Parallelisation
+          is applied in y direction. The interior nodes (excluding the boundaries)
+          are evenly distributted between processes. 
+ * @param rank Current process
+ * @param size Number of processes
+ */ 
 void Burgers::Solve(int& rank,int& size) {
     
-    // Paralelisation Parameters
+    // Number of nodes in y direction for each process
     const int ny =  (Ny-2)/size;
-    // Arrays for local (i.e. for each process) velocity field
+    // Declare arrays for local (i.e. for each process) velocity field
     double* u_loc = new double[Nx*ny];
     double* v_loc = new double[Nx*ny];
+    // Set the boundary conditions on the local velocity field
     for (int j = 0; j < ny; ++j) {
         u_loc[Nx*j] = u_loc[Nx*(j+1)-1] = v_loc[Nx*j] = v_loc[Nx*(j+1)-1] = 0.;
     }
@@ -132,21 +136,28 @@ void Burgers::Solve(int& rank,int& size) {
     const double invDy2 = 1/(dy*dy);
     double axbu;
     double aybv;
-    int j0, i0j0, irj0, ilj0, i0jr, i0jl; // Indices
+    int j0;
+    // Global indices
+    int J, i0j0, irj0, ilj0, i0jr, i0jl;
+    // Local indices
+    int i, j, n, Nxj, Nxji;
     
-    int i, j, n, J;
-    
+    // Iterate over time to solve the equation
     for (n = 1; n <= Nt; ++n) {                             // Loop to iterate in time
         for (j = 0; j < ny; ++j) {                          // Loop to iterate in y
-            J = rank*ny+1+j;    // Vertical index for the whole domain
-            j0 = Nx*J;
+            J = rank*ny+1+j;    // Index for y direction in the whole domain
+            j0 = Nx*J;          // Index to reduce number of opeartions
+            Nxj = Nx*j;         // Index to reduce number of opeartions
             for (i = 1; i < Nx-1; ++i) {                    // Loop to iterate in x
-                // Compute indices
+                // Compute global indices
                 i0j0 = j0+i;
                 irj0 = j0+(i+1);
                 ilj0 = j0+(i-1);
                 i0jr = Nx*(J+1)+i;
                 i0jl = Nx*(J-1)+i;
+                // Local index for current node
+                Nxji = Nxj+i;
+                
                 // Compute convective velocities
                 axbu = ax + b*u[i0j0];
                 aybv = ay + b*v[i0j0];
@@ -165,13 +176,13 @@ void Burgers::Solve(int& rank,int& size) {
                           -  (  axbu*(v[i0j0] - v[ilj0])*invDx
                               + aybv*(v[i0j0] - v[i0jl])*invDy  );
                               
-                // Update the velcoity field
-                u_loc[Nx*j+i] = u[i0j0] + fluxU*dt;
-                v_loc[Nx*j+i] = v[i0j0] + fluxV*dt;
+                // Update the velocity field
+                u_loc[Nxji] = u[i0j0] + fluxU*dt;
+                v_loc[Nxji] = v[i0j0] + fluxV*dt;
                 
             }
         }
-        //Gather all chucks of data
+        //Gather all chucks of local velcoity field into the global velocity field
         MPI_Allgather(u_loc,Nx*ny,MPI_DOUBLE,u+Nx,Nx*ny,MPI_DOUBLE,MPI_COMM_WORLD);        
         MPI_Allgather(v_loc,Nx*ny,MPI_DOUBLE,v+Nx,Nx*ny,MPI_DOUBLE,MPI_COMM_WORLD);        
     }

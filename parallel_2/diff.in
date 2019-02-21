@@ -3,11 +3,11 @@ y0	0
 Lx	10
 Ly	10
 T	1
-Nx	101
-Ny	101
+Nx	102
+Ny	102
 Nt	4000
 ax	0
 ay	0
 b	0
-c	0.5
+c	1
 
