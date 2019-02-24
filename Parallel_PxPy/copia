@@ -1,0 +1,77 @@
+void Burgers::Solve(int& rank,int& size) {
+    ///////////////////////
+    const int Px = 2;
+    const int Py = 2;
+    ///////////////////////
+    
+    // Number of nodes in y direction for each process
+    const int nx =  (Nx-1)/Px + 1;
+    const int ny =  (Ny-1)/Py + 1;
+    // Declare arrays for local (i.e. for each process) velocity field
+    double* u_loc = new double[nx*ny];
+    double* v_loc = new double[nx*ny];
+    
+    double* u_dom = new double[nx*Px*ny*Py];
+    double* v_dom = new double[nx*Px*ny*Py];
+    
+    // Fluxes
+    double fluxU;
+    double fluxV;
+    
+    // Variables to increase enficiency
+    const double invDx  = 1./dx;
+    const double invDy  = 1./dy;
+    const double invDx2 = 1./(dx*dx);
+    const double invDy2 = 1./(dy*dy);
+    double axbu;
+    double aybv;
+
+    int J, I, I0J0, IrJ0, IlJ0, I0Jr, I0Jl; // Global indices
+    int i, j, i0j0;                         // Local indices
+    int n;                                  // Time index
+    
+    // Iterate over time to solve the equation
+    for (n = 1; n <= Nt; ++n) {                             // Loop to iterate in time
+        for (j = 0; j < ny; ++j) {                          // Loop to iterate in y
+            J = floor(rank/Px)*ny+1+j; // Index for y direction in the whole domain
+            for (i = 1; i < Nx-1; ++i) {                    // Loop to iterate in x
+                I = floor(rank/Py)*nx+1+i; // Index for x direction in the whole domain
+                // Compute global indices
+                I0J0 = J*Nx+I;
+                IrJ0 = J*Nx+(I+1);
+                IlJ0 = J*Nx+(I-1);
+                I0Jr = Nx*(J+1)+I;
+                I0Jl = Nx*(J-1)+I;
+                // Local index for current node
+                i0j0 = Nx*j+i;
+                
+                // Compute convective velocities
+                axbu = ax + b*u[I0J0];
+                aybv = ay + b*v[I0J0];
+                
+                // Compute flux in firts equation
+                fluxU =    c*(  (u[IrJ0] - 2.*u[I0J0] + u[IlJ0])*invDx2
+                              + (u[I0Jr] - 2.*u[I0J0] + u[I0Jl])*invDy2 )
+                        
+                           - (  axbu*(u[I0J0] - u[IlJ0])*invDx
+                              + aybv*(u[I0J0] - u[I0Jl])*invDy  );
+                
+                // Compute flux in second equation
+                fluxV =   c*(  (v[IrJ0] - 2.*v[I0J0] + v[IlJ0])*invDx2
+                             + (v[I0Jr] - 2.*v[I0J0] + v[I0Jl])*invDy2 )
+                        
+                          -  (  axbu*(v[I0J0] - v[IlJ0])*invDx
+                              + aybv*(v[I0J0] - v[I0Jl])*invDy  );
+                              
+                // Update the velocity field
+                u_loc[i0j0] = u[I0J0] + fluxU*dt;
+                v_loc[i0j0] = v[I0J0] + fluxV*dt;
+                
+            }
+        }
+        //Gather all chucks of local velcoity field into the global velocity field
+        MPI_Allgather(u_loc,nx*ny,MPI_DOUBLE,u_dom,nx*ny,MPI_DOUBLE,MPI_COMM_WORLD);        
+        MPI_Allgather(v_loc,nx*ny,MPI_DOUBLE,v_dom,nx*ny,MPI_DOUBLE,MPI_COMM_WORLD);        
+    }
+    
+}
